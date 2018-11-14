@@ -13,7 +13,6 @@
 #include <sys/uio.h>
 #include <unistd.h>
 #include <dirent.h>
-
 #define BACKLOG (10)
 #define PATH_ARG 1
 #define DIRECTORY_LISTING_MAX_CHAR 1013
@@ -23,23 +22,25 @@ void serve_request(int);
 char * request_str = "HTTP/1.0 200 OK\r\n"
         "Content-type: text/html; charset=UTF-8\r\n\r\n";
 
-char * request_errorFile = "<b> HTTP/1.0 error: 404 File not found\r\n</b>"
+char * request_errorFL = "<b> HTTP/1.0 error: 404 File not found\r\n</b>"
 	"Content-type: text/html; charset=UTF-8\r\n\r\n";
 
-char * request_pdfFile = "HTTP/1.0 200 OK\r\n"
+char * request_pdfFL = "HTTP/1.0 200 OK\r\n"
 	"Content-type: application/pdf; charset=UTF-8\r\n\r\n";
 
-char * request_jpgFile = "HTTP/1.0 200 OK\r\n"
-	"Content-type: image/jpg; charset=UTF-8\r\n\r\n";
 
-char * request_pngFile = "HTTP/1.0 200 OK\r\n"
-	"Content-type: image/png; charset=UTF-8\r\n\r\n";
-
-char * request_icoFile = "HTTP/1.0 200 OK\r\n"
+char * request_icoFL = "HTTP/1.0 200 OK\r\n"
 	"Content-type: image/ico; charset=UTF-8\r\n\r\n";
 
-char * request_gifFile = "HTTP/1.0 200 OK\r\n"
+char * request_gifFL = "HTTP/1.0 200 OK\r\n"
 	"Content-type: image/gif; charset=UTF-8\r\n\r\n";
+
+
+char * request_jpgFL = "HTTP/1.0 200 OK\r\n"
+	"Content-type: image/jpg; charset=UTF-8\r\n\r\n";
+
+char * request_pngFL = "HTTP/1.0 200 OK\r\n"
+	"Content-type: image/png; charset=UTF-8\r\n\r\n";
 
 char * error = "<b>HTTP/1.0 404 Not Found\r\n</b>"
 	"Content-type: text/html; charset=UTF-8\r\n\r\n"
@@ -120,12 +121,6 @@ int file_exist(char *filename)
 }
 
 
-/*
-*
-* Note: Returns raw pointer to malloc'ed space. User is responsible
-* for freeing up this pointer after its use
-*
-*/
 char* get_directory_contents(char* directory_path,int client_fd)
 {
   char* directory_listing = NULL;
@@ -201,25 +196,27 @@ void serve_request(int client_fd){
   int isFile = stat(filename,&statbuf);
   
   if(isFile == -1){
-      send(client_fd,request_errorFile,strlen(request_errorFile),0);
+      send(client_fd,request_errorFL,strlen(request_errorFL),0);
       send(client_fd,error,strlen(error),0);
     } 
  
   else if(FileDoesExist(filename)){
     if (strstr(filename, ".pdf")){
-      send(client_fd,request_pdfFile,strlen(request_pdfFile),0);
+      send(client_fd,request_pdfFL,strlen(request_pdfFL),0);
     }
+      
+       else if (strstr(filename, ".gif")){
+      send(client_fd,request_gifFL,strlen(request_gifFL),0);
+    }
+      
        else if (strstr(filename, ".jpg")){
-      send(client_fd,request_jpgFile,strlen(request_jpgFile),0);
+      send(client_fd,request_jpgFL,strlen(request_jpgFL),0);
     }
     else if(strstr(filename, ".png")){
-      send(client_fd,request_pngFile,strlen(request_pngFile),0);
-    }
-       else if (strstr(filename, ".gif")){
-      send(client_fd,request_gifFile,strlen(request_gifFile),0);
+      send(client_fd,request_pngFL,strlen(request_pngFL),0);
     }
     else if (strstr(filename, ".ico")){
-      send(client_fd,request_icoFile,strlen(request_icoFile),0);
+      send(client_fd,request_icoFL,strlen(request_icoFL),0);
     }
     else
     //html file
@@ -320,15 +317,7 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    /* A server socket is bound to a port, which it will listen on for incoming
-     * connections.  By default, when a bound socket is closed, the OS waits a
-     * couple of minutes before allowing the port to be re-used.  This is
-     * inconvenient when you're developing an application, since it means that
-     * you have to wait a minute or two after you run to try things again, so
-     * we can disable the wait time by setting a socket option called
-     * SO_REUSEADDR, which tells the OS that we want to be able to immediately
-     * re-bind to that same port. See the socket(7) man page ("man 7 socket")
-     * and setsockopt(2) pages for more details about socket options. */
+    
     int reuse_true = 1;
     
     retval = setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &reuse_true,
@@ -339,15 +328,7 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
-    /* Create an address structure.  This is very similar to what we saw on the
-     * client side, only this time, we're not telling the OS where to connect,
-     * we're telling it to bind to a particular address and port to receive
-     * incoming connections.  Like the client side, we must use htons() to put
-     * the port number in network byte order.  When specifying the IP address,
-     * we use a special constant, INADDR_ANY, which tells the OS to bind to all
-     * of the system's addresses.  If your machine has multiple network
-     * interfaces, and you only wanted to accept connections from one of them,
-     * you could supply the address of the interface you wanted to use here. */
+   
     
    
     struct sockaddr_in6 addr;   // internet socket address data structure
@@ -391,27 +372,8 @@ int main(int argc, char** argv) {
         serve_request(sock);
         
         close(sock); 
-        /* Declare a socket for the client connection. */
-        /* Another address structure.  This time, the system will automatically
-         * fill it in, when we accept a connection, to tell us where the
-         * connection came from. */
-        /* Accept the first waiting connection from the server socket and
-         * populate the address information.  The result (sock) is a socket
-         * descriptor for the conversation with the newly connected client.  If
-         * there are no pending connections in the back log, this function will
-         * block indefinitely while waiting for a client connection to be made.
-         * */
+       
 
-        /* At this point, you have a connected socket (named sock) that you can
-         * use to send() and recv(). */
-
-        /* ALWAYS check the return value of send().  Also, don't hardcode
-         * values.  This is just an example.  Do as I say, not as I do, etc. */
-      //   serve_request(sock);
-
-        /* Tell the OS to clean up the resources associated with that client
-         * connection, now that we're done with it. */
-        
 	
 
     }
